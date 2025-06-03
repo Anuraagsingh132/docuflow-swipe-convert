@@ -1,0 +1,148 @@
+DocuFlow: Your Intelligent Document Management & Productivity Hub
+Core Concept: DocuFlow aims to be an all-in-one solution for seamless document management, powerful document processing tools, and AI-driven insights, all wrapped in a modern, intuitive, and aesthetically pleasing user interface with light and dark modes.
+I. Main Navigation & Global Elements:
+Header:
+Logo: "DocuFlow" logo.
+Main Navigation Tabs: All Files, Workspaces, PDF Tools, Word Tools, Image Tools, Excel Tools, AI Hub.
+Global Action Icons (Top Right):
+Command Palette (Ctrl+K): Quick search and navigation to tools and pages.
+Theme Toggle: Switch between Light and Dark modes.
+Settings: Access to application settings.
+Command Palette (Accessed via Ctrl+K or icon):
+Functionality: Allows users to quickly search for and navigate to different tools, pages, or potentially even specific files/workspaces in the future.
+UI: A modal overlay with a search input and a list of navigable items/tools.
+Footer (Implied, typically):
+Copyright information (e.g., "© 2023 DocuFlow. All rights reserved.").
+Animated "Aurora" Backgrounds: Subtle, slowly shifting gradient backgrounds on main content areas for a modern, dynamic feel.
+Glassmorphism Accents: Used for modals, sidebars (like Settings), and potentially the main navigation bar, providing a layered, frosted glass effect.
+II. Application Pages & Their Features:
+1. All Files Page (/ or /all-files)
+Purpose: The central dashboard for viewing, organizing, and accessing all user documents.
+Content & Features:
+Premium Banner: Non-intrusive, animated banner promoting "DocuFlow Pro" features (e.g., more AI credits, storage, collaboration), with a "Go Pro" CTA and a dismiss option.
+"Good Morning!" Greeting Section:
+Personalized greeting (e.g., "Good morning! ☀️").
+Subtle daily productivity prompt.
+"Tips" or "New Feature" highlights (e.g., "Tip: Try 'Convert to PDF' for your Word documents," "New: AI document summarization available").
+Metadata display (e.g., "Last active: 2 hours ago," "4 files processed today").
+Search Bar:
+Search documents by name (potentially content in the future).
+Accessible via Ctrl+K for command palette integration.
+Pinned Files Section:
+Displays files that the user has marked as important for quick access.
+Card-based layout showing file icon, name, and size.
+Recent Files Section:
+Displays recently accessed or uploaded files.
+Card-based layout: file icon, name, size, last modified date/time ago, and relevant tags (e.g., "meeting," "team," "work," "important," "design," "ui," "finance," "quarterly").
+Filter & View Toggles:
+Filters Button: (Likely opens a modal/dropdown) to filter files by type, date, tags, etc.
+View Toggles: Switch between Grid view (cards) and List view for files.
+File Upload Area (Implicit or explicit):
+A prominent "Drop files here or click to upload" area, potentially integrated into an empty state or always visible.
+Supports various document types (PDF, Word, Excel, PowerPoint, Images, etc.).
+"Press Ctrl+K for quick actions" hint.
+2. Workspaces Page (/workspaces)
+Purpose: Organize documents, tasks, and potentially collaborate on projects within dedicated spaces.
+Content & Features:
+Page Header: "Workspaces ✨" with a brief description (e.g., "Organize your projects and collaborate with your team").
+Workspace Cards Display:
+Shows existing workspaces as cards (e.g., "Client Projects," "Marketing Campaign").
+Each card displays:
+Workspace icon (e.g., colored folder).
+Workspace name.
+Stats (e.g., "24 files • 8 tasks").
+Last activity timestamp.
+"Create New" Workspace Card:
+Allows users to initiate the creation of a new workspace.
+Leads to a modal for workspace creation.
+Workspace Creation Modal:
+Input fields for Workspace Name, Description.
+Option to choose a color theme for the workspace.
+Form validation.
+"View All Workspaces" Button: (If the main page shows a preview/subset). Leads to a comprehensive list or different layout of all workspaces.
+Starred Workspaces Section (Potentially): Quick access to favorited workspaces.
+Inside a Workspace (Future/Implied Functionality):
+Dedicated file list.
+Task management (to-do list/kanban).
+Notes section.
+3. PDF Tools Page (/pdf-tools)
+Purpose: Provides a suite of tools for working with PDF documents. All processing happens locally in the browser.
+Content & Features:
+Page Header: "PDF Tools ✨" with a descriptive tagline (e.g., "Everything you need to work with PDF documents").
+Pro Tip Banner: Informative tip (e.g., "💡 Pro Tip: All processing happens locally in your browser - your files never leave your computer!").
+Tool Cards (Grid Layout):
+Convert to PDF: Convert various document types (Word, Excel, PowerPoint, Images) to PDF.
+Edit PDF: Add text, annotations, and signatures (professional editing tools).
+Merge PDFs: Combine multiple PDFs into one, supports reordering.
+Split PDF: Extract pages or split documents, precise page range selection.
+Compress PDF: Reduce file size while maintaining quality (up to 90% size reduction).
+PDF to Word: Convert PDF to editable Word format, preserving formatting.
+Document Upload Area (Bottom or context-sensitive): A general area to upload a document to be used with the selected tool, or each tool might have its own uploader.
+4. Word Tools Page (/word-tools)
+Purpose: Provides tools for working with Word documents.
+Content & Features (Currently "Coming Soon"):
+"Coming Soon" Placeholder:
+Icon (e.g., gear/wrench).
+Text: "Coming Soon," "This section is under development."
+Button: "Open Command Palette" (links to the global quick action).
+Future Tools (Examples): Doc to PDF, Compare Documents, Grammar Check, Template Library.
+5. Image Tools Page (/image-tools)
+Purpose: Provides tools for working with image files.
+Content & Features (Currently "Coming Soon"):
+Same "Coming Soon" placeholder as Word Tools.
+Future Tools (Examples): Image Converter (PNG to JPG, etc.), Resize Image, Crop Image, Image Compression, Filters.
+6. Excel Tools Page (/excel-tools)
+Purpose: Provides tools for working with Excel spreadsheets.
+Content & Features (Currently "Coming Soon"):
+Same "Coming Soon" placeholder as Word Tools.
+Future Tools (Examples): CSV to Excel, Excel to CSV, Split Sheets, Merge Sheets, Data Visualization helpers.
+7. AI Hub Page (/ai-hub)
+Purpose: Leverages advanced AI for intelligent document processing, insights, and generation.
+Content & Features:
+Page Header: "AI Hub ✨ POWERED BY AI" with a tagline (e.g., "Intelligent document processing powered by advanced AI").
+AI Tool Cards (To be re-added based on feedback):
+Summarize Document: Get key insights instantly from PDFs, Word docs, text files.
+Extract Key Info: Pull out important data, names, dates, and entities (entity recognition).
+Ask Questions: Chat with your documents and get instant answers (context-aware responses with source links).
+Generate Content: Create new documents based on existing content, templates, and content suggestions.
+Central Document Upload Area: "Upload documents for AI processing. Get insights, summaries, and answers from your documents." (This will likely become more context-sensitive based on the selected AI tool).
+8. Settings Panel (Overlay/Sidebar)
+Purpose: Allows users to configure application preferences and manage their account.
+Content & Features:
+Appearance Section:
+Dark Mode Toggle: Switch between light and dark themes.
+Accent Color Pickers: Choose from predefined accent colors (e.g., purple, teal, orange).
+Reduce Motion Toggle: For accessibility, disables more complex animations.
+Notifications Section:
+Toggles for various notification types: "File Upload Complete," "AI Task Finished," "System Announcements," "Email Notifications."
+Storage Management Section:
+Visual storage bar showing used vs. total storage (e.g., "4.5 GB of 10 GB used").
+Detailed breakdown: Files, AI Cache, Versions.
+"Manage Storage" button (potentially leading to options to clear cache or identify large files).
+Account Section:
+"Two-Factor Authentication" toggle/setup.
+"Export My Data" button.
+"Delete Account" button (with strong confirmation).
+Keyboard Shortcuts Section:
+Displays available keyboard shortcuts (e.g., Command Palette: ctrl+k, Toggle Dark Mode: ctrl+d).
+Styled kbd tags for shortcut display.
+Toast Notifications: System feedback for actions like "Theme updated successfully," "Dark Mode Activated," etc., appearing temporarily.
+9. Authentication Pages (Login & Signup)
+Purpose: Secure user access to the application.
+UI & Features:
+Modern "aurora" background matching the main app.
+Glassmorphism form cards with smooth animations.
+Login Form: Email, Password fields, "Login" button, "Forgot Password?" link.
+Signup Form: Name, Email, Password fields, Password strength indicator, "Sign Up" button.
+Social Login Options: "Continue with Google," "Continue with Microsoft."
+Easy toggle between Login and Signup modes.
+Loading states with animated spinners.
+Inline form validation and error/success messages.
+III. Cross-Cutting Features & UI Principles:
+Responsive Design: Mobile-first approach, ensuring usability across devices.
+Modern UI Aesthetics: Soft, professional look with consistent color themes, typography, rounded corners, and subtle shadows.
+Interactive Micro-animations: On buttons, cards, and other elements to provide feedback and enhance the user experience.
+Accessibility: Focus on contrast ratios, keyboard navigability, and options like "Reduce Motion."
+TypeScript: For type safety and better development experience.
+React Router: For seamless single-page application navigation.
+State Management: To handle application data and UI state effectively.
