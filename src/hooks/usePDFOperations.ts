@@ -1,6 +1,6 @@
+
 import { useState } from 'react';
-import { UnifiedPDFService } from '@/services/unifiedPdfService';
-import { PDFOperationResult } from '@/services/pdfService';
+import { PDFService, PDFOperationResult } from '../services/pdfService';
 
 export const usePDFOperations = () => {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -26,23 +26,23 @@ export const usePDFOperations = () => {
       switch (operation) {
         case 'merge-pdf':
           if (!files) throw new Error('Files required for merge operation');
-          result = await UnifiedPDFService.mergePDFs(files);
+          result = await PDFService.mergePDFs(files);
           break;
         case 'split-pdf':
           if (!file) throw new Error('File required for split operation');
-          result = await UnifiedPDFService.splitPDF(file);
+          result = await PDFService.splitPDF(file);
           break;
         case 'compress-pdf':
           if (!file) throw new Error('File required for compress operation');
-          result = await UnifiedPDFService.compressPDF(file);
+          result = await PDFService.compressPDF(file);
           break;
         case 'convert-to-pdf':
           if (!file) throw new Error('File required for convert operation');
-          result = await UnifiedPDFService.convertToPDF(file);
+          result = await PDFService.convertToPDF(file);
           break;
         case 'edit-pdf':
           if (!file) throw new Error('File required for edit operation');
-          result = await UnifiedPDFService.editPDF(
+          result = await PDFService.editPDF(
             file,
             options?.text || 'Added by DocuFlow',
             options?.x,
@@ -51,7 +51,7 @@ export const usePDFOperations = () => {
           break;
         case 'pdf-to-word':
           if (!file) throw new Error('File required for PDF to Word operation');
-          result = await UnifiedPDFService.pdfToWord(file);
+          result = await PDFService.pdfToWord(file);
           break;
         default:
           result = { success: false, error: 'Unknown operation' };
@@ -64,10 +64,10 @@ export const usePDFOperations = () => {
       if (result.success && result.data) {
         if (Array.isArray(result.data) && result.filenames) {
           // Multiple files (like split operation)
-          UnifiedPDFService.downloadMultipleFiles(result.data, result.filenames);
+          PDFService.downloadMultipleFiles(result.data, result.filenames);
         } else if (!Array.isArray(result.data) && result.filename) {
           // Single file
-          UnifiedPDFService.downloadFile(result.data, result.filename);
+          PDFService.downloadFile(result.data, result.filename);
         }
       }
 

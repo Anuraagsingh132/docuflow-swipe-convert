@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Settings, X, Palette, Bell, HardDrive, Shield, Download, Trash2, Cloud } from 'lucide-react';
+import { Settings, X, Palette, Bell, HardDrive, Shield, Download, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Progress } from '@/components/ui/progress';
@@ -11,9 +11,6 @@ interface EnhancedSettingsPanelProps {
   isDarkMode: boolean;
   onToggleDarkMode: (value: boolean) => void;
   onToast: (toast: any) => void;
-  usePdfApi?: boolean;
-  togglePdfApi?: () => void;
-  pdfApiKey?: string;
 }
 
 const EnhancedSettingsPanel: React.FC<EnhancedSettingsPanelProps> = ({
@@ -21,12 +18,8 @@ const EnhancedSettingsPanel: React.FC<EnhancedSettingsPanelProps> = ({
   onClose,
   isDarkMode,
   onToggleDarkMode,
-  onToast,
-  usePdfApi = false,
-  togglePdfApi,
-  pdfApiKey
+  onToast
 }) => {
-
   const [notifications, setNotifications] = useState({
     fileUpload: true,
     aiTasks: true,
@@ -217,49 +210,6 @@ const EnhancedSettingsPanel: React.FC<EnhancedSettingsPanelProps> = ({
             </div>
           </div>
 
-          {/* PDF Processing Section */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Cloud className="w-5 h-5 text-gray-600 dark:text-gray-300" />
-              <h4 className="font-semibold text-gray-900 dark:text-gray-100">PDF Processing</h4>
-            </div>
-            
-            <div className="space-y-3 pl-7">
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-gray-900 dark:text-gray-100 font-medium">Use PDF.co API</span>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Process PDFs in the cloud</p>
-                </div>
-                <Switch 
-                  checked={usePdfApi} 
-                  onCheckedChange={() => {
-                    if (togglePdfApi) {
-                      togglePdfApi();
-                      onToast({
-                        type: 'info',
-                        title: 'PDF Processing Changed',
-                        message: `Switched to ${!usePdfApi ? 'PDF.co API' : 'local'} processing`
-                      });
-                    }
-                  }} 
-                  disabled={!togglePdfApi}
-                />
-              </div>
-              
-              {usePdfApi && pdfApiKey && (
-                <div className="mt-2">
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">API Key:</div>
-                  <div className="p-2 bg-gray-100 dark:bg-slate-700 rounded text-xs font-mono truncate">
-                    {pdfApiKey.substring(0, 10)}...{pdfApiKey.substring(pdfApiKey.length - 10)}
-                  </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                    Using PDF.co for cloud-based PDF operations. Files will be temporarily uploaded for processing.
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-          
           {/* Account Section */}
           <div className="space-y-4">
             <div className="flex items-center gap-2">

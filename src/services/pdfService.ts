@@ -3,15 +3,10 @@ import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 
 export interface PDFOperationResult {
   success: boolean;
-  data?: Uint8Array | Uint8Array[] | any; // Allow for text, search results, etc.
-  dataArray?: Uint8Array[]; // Added for PDF.co API integration
+  data?: Uint8Array | Uint8Array[];
   filename?: string;
   filenames?: string[];
   error?: string;
-  // Additional fields for enhanced operations
-  text?: string;
-  searchResults?: Array<{ text: string; page: number; }>;
-
 }
 
 export class PDFService {

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { FileText, Image, FileSpreadsheet, Brain, Upload, Search, Settings, Moon, Sun, File, FolderOpen, Star, Clock, Grid3X3, List, Download, Share2, Edit3, Merge, Scissors, Archive, Sparkles, Command, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,13 +10,9 @@ import ToastNotification from '@/components/ToastNotification';
 import EnhancedFileList from '@/components/EnhancedFileList';
 import RecentSearches from '@/components/RecentSearches';
 import EnhancedSettingsPanel from '@/components/EnhancedSettingsPanel';
-// import SettingsPanel from '@/components/SettingsPanel'; // Using EnhancedSettingsPanel instead
 import { usePDFOperations } from '@/hooks/usePDFOperations';
 import { Progress } from '@/components/ui/progress';
 import PremiumBanner from '@/components/PremiumBanner';
-import ConvertToPDFStaging, { ConvertToPDFOptions } from '@/components/ConvertToPDFStaging';
-import { useSettings } from '@/contexts/SettingsContext';
-import { UnifiedPDFService } from '@/services/unifiedPdfService';
 
 type ViewMode = 'grid' | 'list';
 
@@ -30,23 +26,9 @@ const Index = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
   const [focusMode, setFocusMode] = useState<{ active: boolean; toolId?: string }>({ active: false });
-  const [stagingState, setStagingState] = useState<{
-    active: boolean;
-    toolId?: string;
-    files: File[];
-  }>({ active: false, files: [] });
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [recentSearches, setRecentSearches] = useState(['project proposal', 'budget analysis', 'meeting notes']);
   const [toasts, setToasts] = useState<any[]>([]);
   const { executeOperation, isProcessing, progress } = usePDFOperations();
-  
-  // Get settings from context
-  const { usePdfApi, togglePdfApi, pdfApiKey } = useSettings();
-  
-  // Initialize the UnifiedPDFService with the current API setting
-  useEffect(() => {
-    UnifiedPDFService.initialize(usePdfApi);
-  }, [usePdfApi]);
 
   const formatTabs = [
     { id: 'all', label: 'All Files', icon: FolderOpen },
@@ -136,68 +118,20 @@ const Index = () => {
     });
   };
 
-  const handleToolFilesDrop = (toolId: string, files: FileList) => {
+  const handleToolFilesDrop = async (toolId: string, files: FileList) => {
+    console.log(`Files dropped on ${toolId}:`, Array.from(files).map(f => f.name));
     const tool = pdfTools.find(t => t.id === toolId);
     
     if (!tool) return;
 
-    // Convert FileList to File array
-    const fileArray = Array.from(files);
+    // Activate focus mode
+    setFocusMode({ active: true, toolId });
 
-    // For tools with staging areas
-    if (toolId === 'convert-to-pdf') {
-      console.log('Activating Convert to PDF staging area');
-      // Don't use focus mode for staging area (prevents blur effect)
-      setFocusMode({ active: false });
-      // Show staging area for Convert to PDF
-      setStagingState({
-        active: true,
-        toolId,
-        files: fileArray
-      });
-    } else {
-      // Activate focus mode for direct processing tools
-      setFocusMode({ active: true, toolId });
-      // For other tools, use the direct processing path for now
-      processToolOperation(toolId, fileArray);
-    }
-  };
-
-  const handleStagingAddMore = () => {
-    // Trigger file input click
-    if (fileInputRef.current) {
-      fileInputRef.current.click();
-    }
-  };
-
-  const handleAdditionalFiles = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const newFiles = event.target.files;
-    if (!newFiles || newFiles.length === 0 || !stagingState.active) return;
-
-    // Add new files to existing files in staging
-    setStagingState(prev => ({
-      ...prev,
-      files: [...prev.files, ...Array.from(newFiles)]
-    }));
-
-    // Reset the file input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
-  const handleStagingClose = () => {
-    // Close staging area and deactivate focus mode
-    setStagingState({ active: false, files: [] });
-    setFocusMode({ active: false });
-  };
-
-  // Function to process PDF tool operations
-  const processToolOperation = async (toolId: string, files: File[]) => {
-    const tool = pdfTools.find(t => t.id === toolId);
-    if (!tool || files.length === 0) return;
-
-    addToast({ type: 'info', title: 'Processing Started', message: `${tool.label} - Processing ${files.length} file(s)${usePdfApi ? ' using PDF.co API' : ' locally'}` });
+    addToast({
+      type: 'info',
+      title: 'Processing Started',
+      message: `${tool.label} - Processing ${files.length} file(s)`
+    });
 
     try {
       let result;
@@ -205,131 +139,52 @@ const Index = () => {
 
       switch (toolId) {
         case 'merge-pdf':
-          result = await UnifiedPDFService.mergePDFs(files as unknown as FileList);
+          result = await executeOperation('merge-pdf', files);
           break;
         case 'split-pdf':
-          result = await UnifiedPDFService.splitPDF(firstFile);
+          result = await executeOperation('split-pdf', undefined, firstFile);
           break;
         case 'compress-pdf':
-          result = await UnifiedPDFService.compressPDF(firstFile);
+          result = await executeOperation('compress-pdf', undefined, firstFile);
+          break;
+        case 'convert-to-pdf':
+          result = await executeOperation('convert-to-pdf', undefined, firstFile);
           break;
         case 'edit-pdf':
-          result = await UnifiedPDFService.editPDF(firstFile, 'Edited with DocuFlow', 50, 750);
+          result = await executeOperation('edit-pdf', undefined, firstFile, {
+            text: 'Edited with DocuFlow',
+            x: 50,
+            y: 750
+          });
           break;
         case 'pdf-to-word':
-          result = await UnifiedPDFService.pdfToWord(firstFile);
+          result = await executeOperation('pdf-to-word', undefined, firstFile);
           break;
         default:
           result = { success: false, error: 'Unknown tool' };
       }
 
       if (result.success) {
-        if (result.data && result.filename) {
-          // Single file result
-          UnifiedPDFService.downloadFile(result.data as Uint8Array, result.filename);
-        } else if (result.data && result.filenames) {
-          // Multiple files result
-          UnifiedPDFService.downloadMultipleFiles(result.data as Uint8Array[], result.filenames);
-        }
-        addToast({ type: 'success', title: 'Processing Complete', message: `${tool.label} completed successfully` });
+        addToast({
+          type: 'success',
+          title: 'Processing Complete',
+          message: `${tool.label} completed successfully`
+        });
       } else {
-        addToast({ type: 'error', title: 'Processing Failed', message: result.error || 'Unknown error occurred' });
+        addToast({
+          type: 'error',
+          title: 'Processing Failed',
+          message: result.error || 'Unknown error occurred'
+        });
       }
     } catch (error) {
-      addToast({ type: 'error', title: 'Processing Failed', message: error instanceof Error ? error.message : 'Unknown error occurred' });
+      addToast({
+        type: 'error',
+        title: 'Processing Failed',
+        message: error instanceof Error ? error.message : 'Unknown error occurred'
+      });
     } finally {
-      setFocusMode({ active: false });
-    }
-  };
-
-  const handleConvertToPDFProcess = async (files: File[], options: ConvertToPDFOptions) => {
-    if (files.length === 0) return;
-
-    try {
-      addToast({ type: 'info', title: 'Processing Started', message: `Converting ${files.length} file(s) to PDF locally` });
-
-      let result;
-
-      if (options.mergeIntoSinglePDF && files.length > 1) {
-        const pdfFiles: Uint8Array[] = [];
-        const filenames: string[] = [];
-
-        for (const file of files) {
-          const singleResult = await UnifiedPDFService.convertToPDF(file);
-
-          if (singleResult.success && singleResult.data) {
-            pdfFiles.push(singleResult.data as Uint8Array);
-            filenames.push(`${file.name.replace(/\.[^/.]+$/, '')}.pdf`);
-          }
-        }
-
-        if (pdfFiles.length > 0) {
-          // Convert Uint8Array PDFs into File objects
-          // Convert Uint8Array PDFs into File objects
-          const pdfFileObjects: File[] = [];
-          
-          // Process each PDF to create File objects
-          for (let i = 0; i < pdfFiles.length; i++) {
-            const pdfData = pdfFiles[i];
-            const blob = new Blob([pdfData], { type: 'application/pdf' });
-            const filename = filenames[i] || 'document.pdf';
-            
-            // Create file without explicit constructor to avoid TypeScript error
-            const file = new Blob([blob], { type: 'application/pdf' }) as any;
-            file.name = filename;
-            file.lastModified = Date.now();
-            
-            pdfFileObjects.push(file as File);
-          }
-          
-          // Create a FileList-like object for the merge operation
-          const fileListForMerge = {
-            length: pdfFileObjects.length,
-            item: (index: number) => pdfFileObjects[index],
-            [Symbol.iterator]: function* () {
-              for (let i = 0; i < this.length; i++) yield this[i];
-            }
-          } as unknown as FileList;
-          
-          // Add indexed access to the FileList
-          pdfFileObjects.forEach((file, index) => {
-            Object.defineProperty(fileListForMerge, index, {
-              value: file,
-              writable: false
-            });
-          });
-          
-          // Merge the PDFs
-          const mergeResult = await UnifiedPDFService.mergePDFs(fileListForMerge);
-          if (mergeResult.success && mergeResult.data) {
-            UnifiedPDFService.downloadFile(mergeResult.data as Uint8Array, 'combined_document.pdf');
-            result = { success: true };
-            addToast({ type: 'success', title: 'Processing Complete', message: `Combined PDF created successfully` });
-          } else {
-            throw new Error(mergeResult.error || 'Failed to combine converted PDFs');
-          }
-        } else {
-          result = { success: false, error: 'Failed to convert files' };
-        }
-      } else {
-        for (const file of files) {
-          result = await UnifiedPDFService.convertToPDF(file);
-
-          if (result.success && result.data && result.filename) {
-            UnifiedPDFService.downloadFile(result.data as Uint8Array, result.filename);
-          } else if (!result.success) {
-            throw new Error(result.error || `Failed to convert ${file.name}`);
-          }
-        }
-
-        if (result.success) {
-          addToast({ type: 'success', title: 'Processing Complete', message: `${files.length} file(s) converted successfully` });
-        }
-      }
-    } catch (error) {
-      addToast({ type: 'error', title: 'Processing Failed', message: error instanceof Error ? error.message : 'Unknown error occurred' });
-    } finally {
-      setStagingState({ active: false, files: [] });
+      // Deactivate focus mode after processing
       setFocusMode({ active: false });
     }
   };
@@ -651,86 +506,36 @@ const Index = () => {
             </div>
           </div>
 
-          {/* Premium Banner for PDF Tools */}
-          <PremiumBanner
-            onUpgrade={handleUpgrade}
-          />
-
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold">PDF Tools</h2>
-            <Input
-              type="search"
-              placeholder="Search PDF tools..."
-              className="max-w-xs"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+          {/* Enhanced PDF Tools Grid with improved visual feedback */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {pdfTools.map((tool, index) => {
+              const Icon = tool.icon;
+              const isActiveTool = focusMode.active && focusMode.toolId === tool.id;
+              return (
+                <DragDropZone
+                  key={tool.id}
+                  onFilesDrop={(files) => handleToolFilesDrop(tool.id, files)}
+                  toolName={tool.label}
+                  acceptedTypes={tool.id === 'convert-to-pdf' ? ['.jpg', '.jpeg', '.png'] : ['.pdf']}
+                  className={`group cursor-pointer interactive-lift animate-fade-in card-glass dark:card-glass-dark rounded-2xl p-8 text-center space-y-4 transition-all duration-300 ${
+                    isProcessing ? 'opacity-50 pointer-events-none' : ''
+                  } ${isActiveTool ? 'ring-2 ring-blue-500 shadow-lg' : ''}`}
+                  style={{ animationDelay: `${index * 0.1}s` }}
+                >
+                  <div className={`w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto group-hover:rotate-6 transition-transform duration-300 ${
+                    isActiveTool ? 'animate-pulse' : ''
+                  }`}>
+                    <Icon className="w-8 h-8 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900 dark:text-white mb-1">{tool.label}</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{tool.description}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-500">{tool.subtext}</p>
+                  </div>
+                </DragDropZone>
+              );
+            })}
           </div>
-          
-          {/* Conditionally render staging area or tools grid */}
-          {stagingState.active && stagingState.toolId === 'convert-to-pdf' ? (
-            // Staging area for Convert to PDF
-            <div className="w-full card-glass dark:card-glass-dark rounded-2xl p-8 shadow-lg animate-fade-in">
-              <ConvertToPDFStaging
-                files={stagingState.files}
-                onClose={handleStagingClose}
-                onProcess={handleConvertToPDFProcess}
-                onAddMoreFiles={handleStagingAddMore}
-              />
-              {/* Hidden file input for adding more files */}
-              <input
-                type="file"
-                ref={fileInputRef}
-                className="hidden"
-                multiple
-                accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
-                onChange={handleAdditionalFiles}
-              />
-            </div>
-          ) : (
-            // Standard PDF Tools Grid
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {pdfTools.map((tool, index) => {
-                const Icon = tool.icon;
-                const isActiveTool = focusMode.active && focusMode.toolId === tool.id;
-                let acceptedTypes;
-                
-                // Define accepted file types based on the tool
-                switch (tool.id) {
-                  case 'convert-to-pdf':
-                    acceptedTypes = ['.jpg', '.jpeg', '.png', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx'];
-                    break;
-                  default:
-                    acceptedTypes = ['.pdf'];
-                    break;
-                }
-                
-                return (
-                  <DragDropZone
-                    key={tool.id}
-                    onFilesDrop={(files) => handleToolFilesDrop(tool.id, files)}
-                    toolName={tool.label}
-                    acceptedTypes={acceptedTypes}
-                    className={`group cursor-pointer interactive-lift animate-fade-in card-glass dark:card-glass-dark rounded-2xl p-8 text-center space-y-4 transition-all duration-300 ${
-                      isProcessing ? 'opacity-50 pointer-events-none' : ''
-                    } ${isActiveTool ? 'ring-2 ring-blue-500 shadow-lg' : ''}`}
-                    style={{ animationDelay: `${index * 0.1}s` }}
-                  >
-                    <div className={`w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto group-hover:rotate-6 transition-transform duration-300 ${
-                      isActiveTool ? 'animate-pulse' : ''
-                    }`}>
-                      <Icon className="w-8 h-8 text-white" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900 dark:text-white mb-1">{tool.label}</h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{tool.description}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-500">{tool.subtext}</p>
-                    </div>
-                  </DragDropZone>
-                );
-              })}
-            </div>
-          )}
 
           {/* Enhanced File Selection Area */}
           <DragDropZone onFilesDrop={handleFilesDrop} acceptedTypes={['.pdf', '.jpg', '.jpeg', '.png']}>
@@ -928,16 +733,20 @@ const Index = () => {
           onSelectTab={setActiveTab}
         />
 
-        {/* Settings Panel with PDF API toggle */}
+        {/* Enhanced Settings Panel */}
         <EnhancedSettingsPanel
           isOpen={showSettings}
           onClose={() => setShowSettings(false)}
           isDarkMode={isDarkMode}
-          onToggleDarkMode={setIsDarkMode}
+          onToggleDarkMode={(value) => {
+            setIsDarkMode(value);
+            addToast({
+              type: 'success',
+              title: `${value ? 'Dark' : 'Light'} Mode Activated`,
+              message: 'Theme updated successfully'
+            });
+          }}
           onToast={addToast}
-          usePdfApi={usePdfApi}
-          togglePdfApi={togglePdfApi}
-          pdfApiKey={pdfApiKey}
         />
 
         {/* Toast Notifications */}
@@ -951,4 +760,3 @@ const Index = () => {
 };
 
 export default Index;
-
