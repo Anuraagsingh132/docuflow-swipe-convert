@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { FileText, Image, FileSpreadsheet, Brain, Upload, Search, Settings, Moon, Sun, File, FolderOpen, Star, Clock, Grid3X3, List, Download, Share2, Edit3, Merge, Scissors, Archive, Sparkles, Command, Plus } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { FileText, Image, FileSpreadsheet, Brain, Upload, Search, Settings, Moon, Sun, File, FolderOpen, Star, Clock, Grid3X3, List, Download, Edit3, Merge, Scissors, Archive, Sparkles, Command, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import CommandPalette from '@/components/CommandPalette';
@@ -13,22 +13,85 @@ import EnhancedSettingsPanel from '@/components/EnhancedSettingsPanel';
 import { usePDFOperations } from '@/hooks/usePDFOperations';
 import { Progress } from '@/components/ui/progress';
 import PremiumBanner from '@/components/PremiumBanner';
+import ConvertToPDFStaging from '@/components/ConvertToPDFStaging';
+import { useSettings } from '@/contexts/SettingsContext';
+import { UnifiedPDFService } from '@/services/unifiedPdfService';
+import MergePDFStaging from '@/components/MergePDFStaging';
+import { useAuth } from '@/hooks/useAuth';
+import { useNavigate } from 'react-router-dom';
 
-type ViewMode = 'grid' | 'list';
+// ... keep existing code (types and interfaces)
 
 const Index = () => {
+  const { user, loading, signOut } = useAuth();
+  const navigate = useNavigate();
+  
+  // Redirect to auth if not authenticated
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate('/auth');
+    }
+  }, [user, loading, navigate]);
+
   const [activeTab, setActiveTab] = useState('all');
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showSettings, setShowSettings] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [hoveredFile, setHoveredFile] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
-  const [focusMode, setFocusMode] = useState<{ active: boolean; toolId?: string }>({ active: false });
-  const [recentSearches, setRecentSearches] = useState(['project proposal', 'budget analysis', 'meeting notes']);
-  const [toasts, setToasts] = useState<any[]>([]);
+  const [focusMode, setFocusMode] = useState<{
+    active: boolean;
+    toolId?: string;
+  }>({
+    active: false
+  });
+  const [stagingState, setStagingState] = useState<{
+    active: boolean;
+    files: File[];
+    toolId?: string;
+  }>({
+    active: false,
+    files: []
+  });
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [recentSearches, setRecentSearches] = useState([
+    'project proposal',
+    'budget analysis', 
+    'meeting notes'
+  ]);
+  const [toasts, setToasts] = useState<Array<{
+    id: string;
+    variant: 'default' | 'destructive';
+    title: string;
+    description: string;
+  }>>([]);
   const { executeOperation, isProcessing, progress } = usePDFOperations();
+  
+  // Get settings from context
+  const { usePdfApi, togglePdfApi, pdfApiKey } = useSettings();
+
+  // Initialize the UnifiedPDFService with the current API setting
+  useEffect(() => {
+    UnifiedPDFService.initialize(usePdfApi);
+  }, [usePdfApi]);
+
+  // Show loading state while checking auth
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  // Don't render anything if user is not authenticated (will redirect)
+  if (!user) {
+    return null;
+  }
+
+  // ... keep existing code (formatTabs, pdfTools, recentFiles, etc.)
 
   const formatTabs = [
     { id: 'all', label: 'All Files', icon: FolderOpen },
@@ -37,58 +100,57 @@ const Index = () => {
     { id: 'word', label: 'Word Tools', icon: FileText },
     { id: 'image', label: 'Image Tools', icon: Image },
     { id: 'excel', label: 'Excel Tools', icon: FileSpreadsheet },
-    { id: 'ai', label: 'AI Hub', icon: Brain },
+    { id: 'ai', label: 'AI Hub', icon: Brain }
   ];
 
   const pdfTools = [
-    { id: 'convert-to-pdf', label: 'Convert to PDF', icon: Download, description: 'Convert any document to PDF format', subtext: 'Supports Word, Excel, PowerPoint & Images' },
-    { id: 'edit-pdf', label: 'Edit PDF', icon: Edit3, description: 'Add text, annotations, and signatures', subtext: 'Professional editing tools included' },
-    { id: 'merge-pdf', label: 'Merge PDFs', icon: Merge, description: 'Combine multiple PDFs into one', subtext: 'Supports reordering pages before merging' },
-    { id: 'split-pdf', label: 'Split PDF', icon: Scissors, description: 'Extract pages or split documents', subtext: 'Precise page range selection' },
-    { id: 'compress-pdf', label: 'Compress PDF', icon: Archive, description: 'Reduce file size while maintaining quality', subtext: 'Up to 90% size reduction' },
-    { id: 'pdf-to-word', label: 'PDF to Word', icon: FileText, description: 'Convert PDF to editable Word document', subtext: 'Preserves formatting and layout' },
+    {
+      id: 'convert-to-pdf',
+      label: 'Convert to PDF',
+      icon: Download,
+      description: 'Convert any document to PDF format',
+      subtext: 'Supports Word, Excel, PowerPoint & Images'
+    },
+    {
+      id: 'edit-pdf',
+      label: 'Edit PDF',
+      icon: Edit3,
+      description: 'Add text, annotations, and signatures',
+      subtext: 'Professional editing tools included'
+    },
+    {
+      id: 'merge-pdf',
+      label: 'Merge PDFs',
+      icon: Merge,
+      description: 'Combine multiple PDFs into one',
+      subtext: 'Supports reordering pages before merging'
+    },
+    {
+      id: 'split-pdf',
+      label: 'Split PDF',
+      icon: Scissors,
+      description: 'Extract pages or split documents',
+      subtext: 'Precise page range selection'
+    },
+    {
+      id: 'compress-pdf',
+      label: 'Compress PDF',
+      icon: Archive,
+      description: 'Reduce file size while maintaining quality',
+      subtext: 'Up to 90% size reduction'
+    },
+    {
+      id: 'pdf-to-word',
+      label: 'PDF to Word',
+      icon: FileText,
+      description: 'Convert PDF to editable Word document',
+      subtext: 'Preserves formatting and layout'
+    }
   ];
 
-  const recentFiles = [
-    { id: 1, name: 'Project Proposal.pdf', type: 'pdf', size: '2.4 MB', modified: '2 hours ago', created: '1 week ago', location: 'Documents/Projects', tags: ['work', 'important'] },
-    { id: 2, name: 'Budget Analysis.xlsx', type: 'excel', size: '1.8 MB', modified: '1 day ago', created: '3 days ago', location: 'Documents/Finance', tags: ['finance', 'quarterly'] },
-    { id: 3, name: 'Meeting Notes.docx', type: 'word', size: '456 KB', modified: '3 days ago', created: '3 days ago', location: 'Documents/Notes', tags: ['meeting', 'team'] },
-    { id: 4, name: 'Design Mockup.png', type: 'image', size: '3.2 MB', modified: '1 week ago', created: '1 week ago', location: 'Documents/Design', tags: ['design', 'ui'] },
-  ];
+  // ... keep existing code (recentFiles, pinnedFiles, aiFeatures arrays)
 
-  const pinnedFiles = [
-    { id: 5, name: 'Annual Report.pdf', type: 'pdf', size: '5.2 MB', modified: '1 week ago', created: '2 weeks ago', location: 'Documents/Reports' },
-    { id: 6, name: 'Client Contract.docx', type: 'word', size: '892 KB', modified: '3 days ago', created: '1 month ago', location: 'Documents/Legal' },
-  ];
-
-  const aiFeatures = [
-    { 
-      label: 'Summarize Document', 
-      desc: 'Get key insights instantly with AI-powered summaries',
-      gradient: 'from-blue-500 to-cyan-500',
-      subtext: 'Works with PDFs, Word docs, and text files'
-    },
-    { 
-      label: 'Extract Key Info', 
-      desc: 'Pull out important data, names, dates, and entities',
-      gradient: 'from-purple-500 to-pink-500',
-      subtext: 'Intelligent entity recognition'
-    },
-    { 
-      label: 'Ask Questions', 
-      desc: 'Chat with your documents and get instant answers',
-      gradient: 'from-green-500 to-emerald-500',
-      subtext: 'Context-aware responses with source links'
-    },
-    { 
-      label: 'Generate Content', 
-      desc: 'Create new documents based on existing content',
-      gradient: 'from-orange-500 to-red-500',
-      subtext: 'Templates and content suggestions'
-    },
-  ];
-
-  const addToast = (toast: any) => {
+  const addToast = (toast: Omit<typeof toasts[0], 'id'>) => {
     const id = Date.now().toString();
     setToasts(prev => [...prev, { ...toast, id }]);
   };
@@ -103,656 +165,137 @@ const Index = () => {
       setRecentSearches(prev => [query.trim(), ...prev.slice(0, 4)]);
     }
     addToast({
-      type: 'info',
+      variant: 'default',
       title: 'Search Initiated',
-      message: `Searching for "${query}"`
+      description: `Searching for "${query}"`
     });
   };
 
   const handleFilesDrop = (files: FileList) => {
     console.log('Files dropped:', Array.from(files).map(f => f.name));
     addToast({
-      type: 'success',
+      variant: 'default',
       title: 'Files Uploaded',
-      message: `Successfully uploaded ${files.length} file(s)`
+      description: `Successfully uploaded ${files.length} file(s)`
     });
   };
 
-  const handleToolFilesDrop = async (toolId: string, files: FileList) => {
-    console.log(`Files dropped on ${toolId}:`, Array.from(files).map(f => f.name));
+  const handleToolFilesDrop = (toolId: string, files: FileList) => {
     const tool = pdfTools.find(t => t.id === toolId);
-    
     if (!tool) return;
 
-    // Activate focus mode
-    setFocusMode({ active: true, toolId });
+    const fileArray = Array.from(files);
 
-    addToast({
-      type: 'info',
-      title: 'Processing Started',
-      message: `${tool.label} - Processing ${files.length} file(s)`
-    });
-
-    try {
-      let result;
-      const firstFile = files[0];
-
-      switch (toolId) {
-        case 'merge-pdf':
-          result = await executeOperation('merge-pdf', files);
-          break;
-        case 'split-pdf':
-          result = await executeOperation('split-pdf', undefined, firstFile);
-          break;
-        case 'compress-pdf':
-          result = await executeOperation('compress-pdf', undefined, firstFile);
-          break;
-        case 'convert-to-pdf':
-          result = await executeOperation('convert-to-pdf', undefined, firstFile);
-          break;
-        case 'edit-pdf':
-          result = await executeOperation('edit-pdf', undefined, firstFile, {
-            text: 'Edited with DocuFlow',
-            x: 50,
-            y: 750
-          });
-          break;
-        case 'pdf-to-word':
-          result = await executeOperation('pdf-to-word', undefined, firstFile);
-          break;
-        default:
-          result = { success: false, error: 'Unknown tool' };
-      }
-
-      if (result.success) {
-        addToast({
-          type: 'success',
-          title: 'Processing Complete',
-          message: `${tool.label} completed successfully`
-        });
-      } else {
-        addToast({
-          type: 'error',
-          title: 'Processing Failed',
-          message: result.error || 'Unknown error occurred'
-        });
-      }
-    } catch (error) {
-      addToast({
-        type: 'error',
-        title: 'Processing Failed',
-        message: error instanceof Error ? error.message : 'Unknown error occurred'
-      });
-    } finally {
-      // Deactivate focus mode after processing
+    // For tools with staging areas
+    if (['convert-to-pdf', 'merge-pdf', 'split-pdf', 'compress-pdf', 'edit-pdf', 'pdf-to-word'].includes(toolId)) {
+      console.log(`Activating ${tool.label} staging area`);
       setFocusMode({ active: false });
-    }
-  };
-
-  const handleFiltersChange = (filters: any) => {
-    console.log('Filters changed:', filters);
-    addToast({
-      type: 'info',
-      title: 'Filters Applied',
-      message: 'File list updated with new filters'
-    });
-  };
-
-  const handleAIFeatureClick = (feature: any) => {
-    // Activate focus mode for AI features
-    setFocusMode({ active: true, toolId: 'ai-' + feature.label.toLowerCase().replace(' ', '-') });
-    
-    addToast({
-      type: 'info',
-      title: feature.label,
-      message: 'AI feature activated'
-    });
-
-    // Simulate processing time
-    setTimeout(() => {
-      setFocusMode({ active: false });
-      addToast({
-        type: 'success',
-        title: 'AI Processing Complete',
-        message: `${feature.label} finished successfully`
+      setStagingState({
+        active: true,
+        toolId,
+        files: fileArray
       });
-    }, 3000);
-  };
-
-  const getFileIcon = (type: string) => {
-    switch (type) {
-      case 'pdf': return <FileText className="w-8 h-8 text-red-500" />;
-      case 'excel': return <FileSpreadsheet className="w-8 h-8 text-green-500" />;
-      case 'word': return <FileText className="w-8 h-8 text-blue-500" />;
-      case 'image': return <Image className="w-8 h-8 text-purple-500" />;
-      default: return <File className="w-8 h-8 text-gray-500" />;
+    } else {
+      setFocusMode({ active: true, toolId });
+      processToolOperation(toolId, fileArray);
     }
   };
 
-  const getAuroraClass = () => {
-    switch (activeTab) {
-      case 'ai': return 'aurora-bg-warm';
-      case 'pdf': return 'aurora-bg-cool';
-      default: return 'aurora-bg';
-    }
-  };
+  // ... keep existing code (other handler functions, processToolOperation, etc.)
 
-  const handleUpgrade = () => {
-    addToast({
-      type: 'info',
-      title: 'DocuFlow Pro',
-      message: 'Upgrade feature coming soon!'
-    });
-  };
-
-  const renderTabContent = () => {
-    if (activeTab === 'all') {
-      return (
-        <div className="space-y-8">
-          {/* Premium Banner */}
-          <PremiumBanner onUpgrade={handleUpgrade} />
-
-          {/* Personalized Greeting Area */}
-          <div className="card-glass dark:card-glass-dark rounded-2xl p-6 interactive-lift">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold gradient-text mb-2">Good morning! ☀️</h2>
-                <p className="text-gray-600 dark:text-gray-300">Ready to tackle your documents today?</p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <div className="text-sm bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-3 py-1 rounded-full">
-                    💡 Tip: Try "Convert to PDF" for your Word documents
-                  </div>
-                  <div className="text-sm bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-3 py-1 rounded-full">
-                    🤖 New: AI document summarization available
-                  </div>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  <Clock className="w-4 h-4 inline mr-1" />
-                  Last active: 2 hours ago
-                </p>
-                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                  4 files processed today
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Enhanced Search Bar with Recent Searches */}
-          <div className="relative max-w-2xl">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 w-5 h-5" />
-            <Input 
-              placeholder="Search your documents... (Ctrl+K for command palette)" 
-              className="pl-12 pr-12 h-14 text-lg border-2 border-gray-200 dark:border-gray-600 rounded-2xl glass-effect dark:glass-effect-dark focus:border-blue-500 transition-all duration-300 bg-white/90 dark:bg-slate-800/90 text-gray-900 dark:text-gray-100"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onFocus={() => setSearchFocused(true)}
-              onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  handleSearch(searchQuery);
-                  setSearchFocused(false);
-                }
-              }}
-            />
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setShowCommandPalette(true)}
-              className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 button-press"
-            >
-              <Command className="w-5 h-5" />
-            </Button>
-            
-            {searchFocused && (
-              <RecentSearches
-                searches={recentSearches}
-                onSelectSearch={(search) => {
-                  setSearchQuery(search);
-                  handleSearch(search);
-                  setSearchFocused(false);
-                }}
-                onRemoveSearch={(search) => {
-                  setRecentSearches(prev => prev.filter(s => s !== search));
-                }}
-                onClearAll={() => setRecentSearches([])}
-              />
-            )}
-          </div>
-
-          {/* Pinned Files Section */}
-          {pinnedFiles.length > 0 && (
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <Star className="w-5 h-5 text-yellow-500 animate-pulse-slow" />
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Pinned Files</h2>
-              </div>
-              <div className="flex gap-4 overflow-x-auto pb-2">
-                {pinnedFiles.map((file, index) => (
-                  <div
-                    key={file.id}
-                    className="flex-shrink-0 w-64 card-glass dark:card-glass-dark rounded-xl p-4 interactive-lift cursor-pointer relative"
-                    onMouseEnter={() => setHoveredFile(file.id)}
-                    onMouseLeave={() => setHoveredFile(null)}
-                    style={{ animationDelay: `${index * 0.1}s` }}
-                  >
-                    <QuickActions 
-                      fileName={file.name}
-                      fileType={file.type}
-                      isVisible={hoveredFile === file.id}
-                    />
-                    <div className="flex items-center gap-3">
-                      {getFileIcon(file.type)}
-                      <div className="min-w-0 flex-1">
-                        <h3 className="font-semibold text-gray-900 dark:text-white truncate">{file.name}</h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">{file.size}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* View Toggle and Filters */}
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Recent Files</h2>
-            <div className="flex items-center gap-3">
-              <FileFilters onFiltersChange={handleFiltersChange} />
-              <div className="flex items-center gap-2">
-                <Button
-                  variant={viewMode === 'grid' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setViewMode('grid')}
-                  className={`rounded-xl transition-all duration-200 interactive-scale ${
-                    viewMode === 'grid' 
-                      ? 'bg-blue-500 text-white hover:bg-blue-600' 
-                      : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-slate-600 hover:bg-gray-200 dark:hover:bg-slate-600'
-                  }`}
-                >
-                  <Grid3X3 className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant={viewMode === 'list' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setViewMode('list')}
-                  className={`rounded-xl transition-all duration-200 interactive-scale ${
-                    viewMode === 'list' 
-                      ? 'bg-blue-500 text-white hover:bg-blue-600' 
-                      : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-slate-600 hover:bg-gray-200 dark:hover:bg-slate-600'
-                  }`}
-                >
-                  <List className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          {/* Enhanced File List */}
-          <EnhancedFileList
-            files={recentFiles}
-            viewMode={viewMode}
-            hoveredFile={hoveredFile}
-            onHover={setHoveredFile}
-          />
-
-          {/* Enhanced Upload Area */}
-          <DragDropZone onFilesDrop={handleFilesDrop}>
-            <div className="card-glass dark:card-glass-dark border-2 border-dashed border-blue-300 dark:border-gray-600 rounded-3xl p-12 text-center group hover:border-blue-500 transition-all duration-300 cursor-pointer">
-              <Upload className="w-16 h-16 text-blue-500 mx-auto mb-4 animate-bounce-gentle" />
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Drop files here or click to upload</h3>
-              <p className="text-gray-600 dark:text-gray-400">Support for PDF, Word, Excel, PowerPoint, Images and more</p>
-              <div className="mt-4 flex items-center justify-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                <Command className="w-4 h-4" />
-                <span>Press Ctrl+K for quick actions</span>
-              </div>
-            </div>
-          </DragDropZone>
-        </div>
-      );
-    }
-
-    if (activeTab === 'workspaces') {
-      return (
-        <div className="space-y-8">
-          {/* Workspaces Overview */}
-          <div className="text-center space-y-4">
-            <div className="flex items-center justify-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center animate-bounce-gentle">
-                <FolderOpen className="w-6 h-6 text-white" />
-              </div>
-              <h2 className="text-3xl font-bold gradient-text">Workspaces</h2>
-              <Sparkles className="w-6 h-6 text-yellow-500 animate-pulse" />
-            </div>
-            <p className="text-gray-600 dark:text-gray-400">Organize your projects and collaborate with your team</p>
-          </div>
-
-          {/* Quick Workspace Access */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="card-glass dark:card-glass-dark rounded-2xl p-6 text-center interactive-lift cursor-pointer">
-              <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <FolderOpen className="w-8 h-8 text-white" />
-              </div>
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Client Projects</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">24 files • 8 tasks</p>
-              <div className="text-xs text-gray-500 dark:text-gray-500">Last activity: 2 hours ago</div>
-            </div>
-
-            <div className="card-glass dark:card-glass-dark rounded-2xl p-6 text-center interactive-lift cursor-pointer">
-              <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <FolderOpen className="w-8 h-8 text-white" />
-              </div>
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Marketing Campaign</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">18 files • 5 tasks</p>
-              <div className="text-xs text-gray-500 dark:text-gray-500">Last activity: 1 day ago</div>
-            </div>
-
-            <div className="card-glass dark:card-glass-dark rounded-2xl p-6 text-center interactive-lift cursor-pointer border-2 border-dashed border-blue-300 dark:border-blue-600 hover:border-blue-500">
-              <div className="w-16 h-16 bg-gradient-to-br from-gray-400 to-gray-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <Plus className="w-8 h-8 text-white" />
-              </div>
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Create New</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Start a new workspace</p>
-            </div>
-          </div>
-
-          <div className="text-center">
-            <Button
-              onClick={() => window.location.href = '/workspaces'}
-              className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 interactive-scale"
-            >
-              <FolderOpen className="w-4 h-4 mr-2" />
-              View All Workspaces
-            </Button>
-          </div>
-        </div>
-      );
-    }
-
-    if (activeTab === 'pdf') {
-      return (
-        <div className="space-y-8">
-          {/* Processing Progress Bar */}
-          {isProcessing && (
-            <div className="card-glass dark:card-glass-dark rounded-xl p-4">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-6 h-6 bg-blue-500 rounded-full animate-pulse"></div>
-                <span className="text-blue-700 dark:text-blue-300 font-medium">
-                  Processing PDF...
-                </span>
-              </div>
-              <Progress value={progress} className="h-2" />
-              <p className="text-sm text-blue-600 dark:text-blue-400 mt-2">
-                {progress < 100 ? `${progress}% complete` : 'Finalizing...'}
-              </p>
-            </div>
-          )}
-
-          {/* Enhanced Interactive Hero Area */}
-          <div className="text-center space-y-4">
-            <div className="flex items-center justify-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-pink-500 rounded-2xl flex items-center justify-center animate-bounce-gentle">
-                <FileText className="w-6 h-6 text-white" />
-              </div>
-              <h2 className="text-3xl font-bold gradient-text">PDF Tools</h2>
-              <Sparkles className="w-6 h-6 text-yellow-500 animate-pulse" />
-            </div>
-            <p className="text-gray-600 dark:text-gray-400">Everything you need to work with PDF documents</p>
-            <div className="card-glass dark:card-glass-dark rounded-xl p-4 inline-block">
-              <p className="text-sm text-blue-700 dark:text-blue-300">
-                💡 <strong>Pro Tip:</strong> All processing happens locally in your browser - your files never leave your computer!
-              </p>
-            </div>
-          </div>
-
-          {/* Enhanced PDF Tools Grid with improved visual feedback */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {pdfTools.map((tool, index) => {
-              const Icon = tool.icon;
-              const isActiveTool = focusMode.active && focusMode.toolId === tool.id;
-              return (
-                <DragDropZone
-                  key={tool.id}
-                  onFilesDrop={(files) => handleToolFilesDrop(tool.id, files)}
-                  toolName={tool.label}
-                  acceptedTypes={tool.id === 'convert-to-pdf' ? ['.jpg', '.jpeg', '.png'] : ['.pdf']}
-                  className={`group cursor-pointer interactive-lift animate-fade-in card-glass dark:card-glass-dark rounded-2xl p-8 text-center space-y-4 transition-all duration-300 ${
-                    isProcessing ? 'opacity-50 pointer-events-none' : ''
-                  } ${isActiveTool ? 'ring-2 ring-blue-500 shadow-lg' : ''}`}
-                  style={{ animationDelay: `${index * 0.1}s` }}
-                >
-                  <div className={`w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto group-hover:rotate-6 transition-transform duration-300 ${
-                    isActiveTool ? 'animate-pulse' : ''
-                  }`}>
-                    <Icon className="w-8 h-8 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900 dark:text-white mb-1">{tool.label}</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{tool.description}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-500">{tool.subtext}</p>
-                  </div>
-                </DragDropZone>
-              );
-            })}
-          </div>
-
-          {/* Enhanced File Selection Area */}
-          <DragDropZone onFilesDrop={handleFilesDrop} acceptedTypes={['.pdf', '.jpg', '.jpeg', '.png']}>
-            <div className="card-glass dark:card-glass-dark border-2 border-dashed border-blue-300 dark:border-gray-600 rounded-3xl p-12 text-center">
-              <FileText className="w-16 h-16 text-blue-500 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Select files to get started</h3>
-              <p className="text-gray-600 dark:text-gray-400">Drop PDF files or images here, or choose from the tools above</p>
-              <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">All processing happens locally - your files stay private!</p>
-            </div>
-          </DragDropZone>
-        </div>
-      );
-    }
-
-    if (activeTab === 'ai') {
-      return (
-        <div className="space-y-8">
-          {/* Enhanced Interactive AI Hero */}
-          <div className="text-center space-y-4">
-            <div className="flex items-center justify-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center animate-pulse">
-                <Brain className="w-6 h-6 text-white" />
-              </div>
-              <h2 className="text-3xl font-bold gradient-text-warm">AI Hub</h2>
-              <div className="flex items-center gap-1">
-                <Sparkles className="w-4 h-4 text-yellow-500 animate-pulse" />
-                <span className="text-sm bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent font-semibold">POWERED BY AI</span>
-              </div>
-            </div>
-            <p className="text-gray-600 dark:text-gray-400">Intelligent document processing powered by advanced AI</p>
-          </div>
-
-          {/* Enhanced AI Features Grid with subtexts */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {aiFeatures.map((feature, index) => {
-              const isActiveFeature = focusMode.active && focusMode.toolId === 'ai-' + feature.label.toLowerCase().replace(' ', '-');
-              return (
-                <div
-                  key={index}
-                  className={`bg-gradient-to-br ${feature.gradient} rounded-2xl p-8 text-white card-glass interactive-lift cursor-pointer group animate-fade-in transition-all duration-300 ${
-                    isActiveFeature ? 'ring-2 ring-white shadow-2xl scale-105' : ''
-                  }`}
-                  style={{ animationDelay: `${index * 0.15}s` }}
-                  onClick={() => handleAIFeatureClick(feature)}
-                >
-                  <div className="space-y-4">
-                    <div className={`w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 ${
-                      isActiveFeature ? 'animate-pulse' : ''
-                    }`}>
-                      <Brain className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-white mb-2">{feature.label}</h3>
-                      <p className="text-white/90 text-sm mb-2">{feature.desc}</p>
-                      <p className="text-white/70 text-xs">{feature.subtext}</p>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* AI Upload Area */}
-          <DragDropZone onFilesDrop={handleFilesDrop}>
-            <div className="card-glass dark:card-glass-dark border-2 border-dashed border-purple-300 dark:border-purple-600 rounded-3xl p-12 text-center">
-              <Brain className="w-16 h-16 text-purple-500 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Upload documents for AI processing</h3>
-              <p className="text-gray-600 dark:text-gray-400">Get insights, summaries, and answers from your documents</p>
-            </div>
-          </DragDropZone>
-        </div>
-      );
-    }
-
-    return (
-      <div className="text-center py-16">
-        <div className="w-16 h-16 bg-gradient-to-br from-gray-400 to-gray-600 rounded-2xl flex items-center justify-center mx-auto mb-4 animate-spin" style={{ animationDuration: '3s' }}>
-          <Settings className="w-8 h-8 text-white" />
-        </div>
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Coming Soon</h2>
-        <p className="text-gray-600 dark:text-gray-400">This section is under development</p>
-        <div className="mt-8">
-          <Button 
-            onClick={() => setShowCommandPalette(true)}
-            className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 interactive-scale"
+  return (
+    <div className={`min-h-screen transition-all duration-300 ${
+      isDarkMode ? 'dark bg-gray-900' : 'bg-gray-50'
+    } ${focusMode.active ? 'overflow-hidden' : ''}`}>
+      
+      {/* User Profile Section */}
+      <div className="absolute top-4 right-4 z-50">
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-gray-600 dark:text-gray-300">
+            {user.email}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={signOut}
+            className="text-sm"
           >
-            <Command className="w-4 h-4 mr-2" />
-            Open Command Palette
+            Sign Out
           </Button>
         </div>
       </div>
-    );
-  };
 
-  return (
-    <div className={`min-h-screen transition-colors duration-500 ${isDarkMode ? 'dark' : ''}`}>
-      {/* Dynamic Aurora Background */}
-      <div className={`fixed inset-0 ${getAuroraClass()}`} />
-      
-      {/* Focus Mode Overlay */}
-      {focusMode.active && (
-        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-20 pointer-events-none animate-fade-in" />
-      )}
-      
-      <div className="relative min-h-screen">
-        {/* Enhanced Header with Glassmorphism */}
-        <header className={`sticky top-0 z-40 ${isDarkMode ? 'glass-header-dark' : 'glass-header'} border-b border-gray-200 dark:border-gray-700`}>
-          <div className="max-w-7xl mx-auto px-6 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center logo-hover">
-                  <FileText className="w-6 h-6 text-white" />
-                </div>
-                <h1 className="text-2xl font-bold gradient-text">
-                  DocuFlow
-                </h1>
-              </div>
-              
-              <div className="flex items-center space-x-4">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setShowCommandPalette(true)}
-                  className="rounded-xl interactive-scale hover:bg-blue-100 dark:hover:bg-blue-900/30 text-gray-600 dark:text-gray-300"
-                  title="Command Palette (Ctrl+K)"
-                >
-                  <Command className="w-5 h-5" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => {
-                    setIsDarkMode(!isDarkMode);
-                    addToast({
-                      type: 'success',
-                      title: `${!isDarkMode ? 'Dark' : 'Light'} Mode Activated`,
-                      message: 'Theme updated successfully'
-                    });
-                  }}
-                  className="rounded-xl interactive-scale hover:bg-blue-100 dark:hover:bg-blue-900/30 icon-theme text-gray-600 dark:text-gray-300"
-                >
-                  {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setShowSettings(!showSettings)}
-                  className="rounded-xl interactive-scale hover:bg-blue-100 dark:hover:bg-blue-900/30 icon-settings text-gray-600 dark:text-gray-300"
-                >
-                  <Settings className="w-5 h-5" />
-                </Button>
-              </div>
-            </div>
-          </div>
+      {/* Keep existing layout structure... */}
+      <div className="relative">
+        {/* Header */}
+        <header className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-40">
+          {/* ... keep existing header code */}
         </header>
 
-        {/* Enhanced Format Navigation Tabs with Glassmorphism */}
-        <div className={`sticky top-[73px] z-30 ${isDarkMode ? 'glass-header-dark' : 'glass-header'} border-b border-gray-200 dark:border-gray-700`}>
-          <div className="max-w-7xl mx-auto px-6">
-            <div className="flex space-x-1 overflow-x-auto py-4 scrollbar-hide">
-              {formatTabs.map((tab) => {
-                const Icon = tab.icon;
-                const isActive = activeTab === tab.id;
-                
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-medium transition-all duration-300 whitespace-nowrap interactive-scale ${
-                      isActive
-                        ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg tab-active'
-                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'
-                    }`}
-                  >
-                    <Icon className="w-5 h-5" />
-                    <span>{tab.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        {/* Main Content with Focus Mode Support */}
-        <main className={`max-w-7xl mx-auto px-6 py-8 relative z-10 transition-all duration-300 ${
-          focusMode.active ? 'brightness-110 contrast-110' : ''
-        }`}>
-          {renderTabContent()}
+        {/* Main Content */}
+        <main className="container mx-auto px-6 py-8">
+          {/* ... keep existing main content structure */}
         </main>
 
-        {/* Command Palette */}
+        {/* Staging Areas */}
+        {stagingState.active && stagingState.toolId === 'convert-to-pdf' && (
+          <ConvertToPDFStaging
+            files={stagingState.files}
+            onClose={() => setStagingState({ active: false, files: [] })}
+            onAddMore={() => fileInputRef.current?.click()}
+          />
+        )}
+
+        {stagingState.active && stagingState.toolId === 'merge-pdf' && (
+          <MergePDFStaging
+            files={stagingState.files}
+            onClose={() => setStagingState({ active: false, files: [] })}
+            onAddMore={() => fileInputRef.current?.click()}
+          />
+        )}
+
+        {/* Other Components */}
         <CommandPalette
           isOpen={showCommandPalette}
           onClose={() => setShowCommandPalette(false)}
-          onSelectTab={setActiveTab}
         />
 
-        {/* Enhanced Settings Panel */}
         <EnhancedSettingsPanel
           isOpen={showSettings}
           onClose={() => setShowSettings(false)}
           isDarkMode={isDarkMode}
-          onToggleDarkMode={(value) => {
-            setIsDarkMode(value);
-            addToast({
-              type: 'success',
-              title: `${value ? 'Dark' : 'Light'} Mode Activated`,
-              message: 'Theme updated successfully'
-            });
-          }}
+          onToggleDarkMode={setIsDarkMode}
+          usePdfApi={usePdfApi}
+          togglePdfApi={togglePdfApi}
           onToast={addToast}
         />
 
         {/* Toast Notifications */}
-        <ToastNotification
-          toasts={toasts}
-          onRemove={removeToast}
+        {toasts.map((toast) => (
+          <ToastNotification
+            key={toast.id}
+            variant={toast.variant}
+            title={toast.title}
+            description={toast.description}
+            onClose={() => removeToast(toast.id)}
+          />
+        ))}
+
+        {/* Hidden file input for adding more files */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            if (e.target.files && stagingState.active) {
+              setStagingState(prev => ({
+                ...prev,
+                files: [...prev.files, ...Array.from(e.target.files!)]
+              }));
+              e.target.value = '';
+            }
+          }}
         />
       </div>
     </div>

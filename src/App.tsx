@@ -22,6 +22,7 @@ const App = () => (
           <Route path="/workspaces" element={<Workspaces />} />
           <Route path="/workspace/:id" element={<Workspaces />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/auth/reset-password" element={<Auth />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
